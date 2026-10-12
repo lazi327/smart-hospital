@@ -19,6 +19,9 @@ services:
       # ===== AI 导诊用的 DeepSeek Key，留空则 AI 功能返回友好提示 =====
       - key: DEEPSEEK_API_KEY
         sync: false
+      # ===== 跨域放行：前端托管在 IGA Pages 时填其站点地址，同源部署可留空 =====
+      - key: ALLOWED_ORIGINS
+        sync: false
       # ===== 时区，保证号源日期与排班按北京时间计算 =====
       - key: TZ
         value: Asia/Shanghai

@@ -36,3 +36,8 @@ spring:
 logging:
   level:
     org.springframework.ai: info
+
+app:
+  cors:
+    # 前后端分离部署（如前端托管在 IGA Pages）时填前端站点地址，逗号分隔；同源部署留空
+    allowed-origins: ${ALLOWED_ORIGINS:}
