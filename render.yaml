@@ -1,14 +1,12 @@
 # Render Blueprint —— 智慧医院服务系统（Spring Boot 3.4.5 + Spring AI + 外部 MySQL）
-# 部署方式：Git 仓库 + Blueprint。数据库采用外部托管 MySQL（连接串在 Dashboard 填写）。
+# Render 无原生 Java runtime，因此使用 runtime: docker + 仓库根目录的 Dockerfile 构建。
 services:
   - type: web
     name: smart-hospital
-    runtime: java
+    runtime: docker
     plan: free
-    # Render 免费实例内存 512MB，限制堆占比避免 OOM 被杀；
-    # 端口由 Render 注入的 PORT 环境变量决定（application.yml 中为 ${PORT:8080}）
-    buildCommand: mvn -B clean package -DskipTests
-    startCommand: java -XX:MaxRAMPercentage=70.0 -jar target/smart-hospital-1.0.0.jar
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /
     envVars:
       # ===== 外部 MySQL（必填，Dashboard 中填写，sync: false 表示不进版本库）=====
