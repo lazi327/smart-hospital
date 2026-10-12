@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 智能导诊 - 智慧医院</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .ai-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; min-height: calc(100vh - 200px); }
+  .chat-panel { display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; backdrop-filter: blur(20px); }
+  .chat-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+  .chat-header .ai-avatar { width: 44px; height: 44px; border-radius: 13px; background: var(--brand-gradient); display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: var(--brand-glow); }
+  .chat-header h3 { font-size: 17px; }
+  .chat-header p { font-size: 13px; color: var(--text-3); }
+  .chat-messages { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  .msg { max-width: 80%; display: flex; gap: 10px; align-items: flex-start; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg .m-avatar { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .msg.user .m-avatar { background: var(--glass-strong); }
+  .msg.ai .m-avatar { background: var(--brand-gradient); }
+  .m-bubble { padding: 13px 17px; border-radius: 16px; font-size: 14.5px; line-height: 1.7; }
+  .msg.ai .m-bubble { background: var(--glass); border: 1px solid var(--border); border-top-left-radius: 5px; }
+  .msg.user .m-bubble { background: var(--brand-gradient); color: #fff; border-top-right-radius: 5px; }
+  .m-bubble .dept-suggest { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .m-bubble .dept-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--glass); border-radius: 12px; margin-top: 8px; cursor: pointer; transition: all .2s; }
+  .m-bubble .dept-item:hover { background: var(--brand-gradient-soft); }
+  .chat-input { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+  .chat-input input { flex: 1; }
+  .quick-tags { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 24px 12px; }
+  .quick-tag { padding: 7px 14px; border-radius: 100px; background: var(--glass); border: 1px solid var(--border); font-size: 13px; color: var(--text-2); cursor: pointer; transition: all .2s; }
+  .quick-tag:hover { background: var(--brand-gradient-soft); color: var(--brand-3); border-color: rgba(14,165,164,0.4); }
+  .typing { display: flex; gap: 5px; padding: 6px 0; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); animation: typing 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes typing { 0%,60%,100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-6px); opacity: 1; } }
+  .side-panel .card { margin-bottom: 16px; }
+  .side-panel h4 { font-size: 15px; margin-bottom: 12px; }
+  .tip-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; color: var(--text-2); }
+  .tip-item:last-child { border: none; }
+  .tip-icon { font-size: 18px; }
+  @media (max-width: 900px) { .ai-layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<nav class="nav" id="nav"></nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">AI 智能导诊</h1>
+    <p class="page-sub">描述您的症状，AI 为您智能推荐就诊科室</p>
+  </div>
+
+  <div class="ai-layout">
+    <!-- 聊天主区 -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="ai-avatar">🤖</div>
+        <div>
+          <h3>智慧导诊助手</h3>
+          <p><span class="dot live"></span> 在线 · 7×24 小时服务</p>
+        </div>
+      </div>
+      <div class="chat-messages" id="messages">
+        <div class="msg ai">
+          <div class="m-avatar">🤖</div>
+          <div class="m-bubble">
+            您好！我是您的智能导诊助手 👋<br>
+            请详细描述您的症状（如疼痛部位、持续时间、伴随症状等），我将为您推荐合适的科室。
+          </div>
+        </div>
+      </div>
+      <div class="quick-tags" id="quickTags">
+        <span class="quick-tag" onclick="sendMsg('头疼三天，伴有恶心')">头疼恶心</span>
+        <span class="quick-tag" onclick="sendMsg('咳嗽发烧咳嗽一周，喉咙痛')">咳嗽发热</span>
+        <span class="quick-tag" onclick="sendMsg('胸闷气短，活动后加重')">胸闷气短</span>
+        <span class="quick-tag" onclick="sendMsg('腹痛腹泻')">腹痛腹泻</span>
+        <span class="quick-tag" onclick="sendMsg('皮肤瘙痒起红疹')">皮肤红疹</span>
+      </div>
+      <div class="chat-input">
+        <input class="input" id="msgInput" placeholder="请描述您的症状..." onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="btn btn-primary" onclick="sendMsg()">发送</button>
+      </div>
+    </div>
+
+    <!-- 侧边栏 -->
+    <div class="side-panel">
+      <div class="card">
+        <h4>💡 使用提示</h4>
+        <div class="tip-item"><span class="tip-icon">📍</span><div>请描述症状越详细，推荐越精准</div></div>
+        <div class="tip-item"><span class="tip-icon">⏰</span><div>说明症状持续时间和严重程度</div></div>
+        <div class="tip-item"><span class="tip-icon">💊</span><div>提及已服用药物和过敏史</div></div>
+        <div class="tip-item"><span class="tip-icon">🚨</span><div>急症请立即拨打 120</div></div>
+      </div>
+      <div class="card">
+        <h4>🏥 热门科室</h4>
+        <div id="hotDepts"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+  renderNav('ai.html');
+  let sessionId = localStorage.getItem('ai_session') || ('s_' + Date.now());
+  localStorage.setItem('ai_session', sessionId);
+
+  (async () => {
+    try {
+      const depts = await api('/api/departments');
+      document.getElementById('hotDepts').innerHTML = depts.slice(0, 6).map(d =>
+        `<div class="tip-item" style="cursor:pointer" onclick="location.href='appointments.html?dept=${d.id}'"><span class="tip-icon">${d.icon || '🏥'}</span><div>${escapeHtml(d.name)}</div></div>`).join('');
+    } catch (e) {}
+  })();
+
+  function appendMsg(role, html) {
+    const box = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    div.innerHTML = `<div class="m-avatar">${role === 'ai' ? '🤖' : '👤'}</div><div class="m-bubble">${html}</div>`;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    return div;
+  }
+
+  async function sendMsg(text) {
+    const input = document.getElementById('msgInput');
+    const msg = text || input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    appendMsg('user', escapeHtml(msg));
+
+    const typing = appendMsg('ai', '<div class="typing"><span></span><span></span><span></span></div>');
+
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Auth-Token': localStorage.getItem('token') || '' },
+        body: JSON.stringify({ sessionId, message: msg })
+      });
+      const data = await res.json();
+      if (data.code !== 200) throw new Error(data.message);
+      const r = data.data;
+      let html = escapeHtml(r.reply);
+      if (r.departments && r.departments.length) {
+        html += '<div class="dept-suggest"><b>推荐科室：</b>';
+        r.departments.forEach(d => {
+          html += `<div class="dept-item" onclick="location.href='appointments.html?dept=${d.id}'"><span>${escapeHtml(d.name)}</span><span>→ 去挂号</span></div>`;
+        });
+        html += '</div>';
+      }
+      typing.querySelector('.m-bubble').innerHTML = html;
+    } catch (e) {
+      typing.querySelector('.m-bubble').innerHTML = '抱歉，服务暂时不可用，请稍后再试。';
+    }
+  }
+</script>
+</body>
+</html>

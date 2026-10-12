@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧医院 - 让健康触手可及</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* ===== Hero ===== */
+  .hero {
+    position: relative; padding: 80px 0 100px;
+    display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 50px; align-items: center;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 18px; border-radius: 100px;
+    background: var(--brand-gradient-soft);
+    border: 1px solid rgba(14,165,164,0.3);
+    font-size: 13.5px; color: var(--brand-3); font-weight: 500;
+    margin-bottom: 24px;
+  }
+  .hero-title {
+    font-family: "Noto Serif SC", serif;
+    font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+    font-weight: 700; line-height: 1.25;
+    margin-bottom: 20px;
+  }
+  .hero-title .grad {
+    background: var(--brand-gradient);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero-desc { font-size: 17px; color: var(--text-3); margin-bottom: 36px; max-width: 520px; line-height: 1.7; }
+  .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+  .hero-stats { display: flex; gap: 36px; margin-top: 48px; }
+  .hero-stat .num { font-size: 28px; font-weight: 700; font-family: "Noto Serif SC", serif; background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero-stat .lbl { font-size: 13px; color: var(--text-3); }
+
+  /* Hero 右侧浮动卡片 */
+  .hero-visual { position: relative; height: 460px; }
+  .float-card {
+    position: absolute; padding: 20px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
+    animation: floatY 6s ease-in-out infinite;
+  }
+  .float-card.c1 { top: 10px; right: 0; width: 240px; animation-delay: 0s; }
+  .float-card.c2 { top: 140px; left: 0; width: 220px; animation-delay: 1.5s; }
+  .float-card.c3 { bottom: 0; right: 30px; width: 230px; animation-delay: 3s; }
+  @keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+  .float-card .fc-icon { width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 12px; }
+  .float-card .fc-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .float-card .fc-sub { font-size: 12.5px; color: var(--text-3); }
+  .float-card .fc-bar { height: 5px; border-radius: 3px; background: var(--border); margin-top: 10px; overflow: hidden; }
+  .float-card .fc-bar span { display: block; height: 100%; border-radius: 3px; background: var(--brand-gradient); }
+
+  /* ===== 功能入口 ===== */
+  .section { padding: 60px 0; }
+  .section-head { text-align: center; margin-bottom: 40px; }
+  .section-head h2 { margin-bottom: 10px; }
+  .section-head p { color: var(--text-3); }
+  .features { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .feature {
+    padding: 32px 24px; text-align: center; cursor: pointer;
+    transition: all .3s var(--ease);
+  }
+  .feature:hover { transform: translateY(-6px); border-color: var(--brand-1); box-shadow: var(--shadow-glow); }
+  .feature-icon {
+    width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 18px;
+    display: flex; align-items: center; justify-content: center; font-size: 30px;
+    background: var(--brand-gradient-soft); border: 1px solid rgba(14,165,164,0.3);
+  }
+  .feature h3 { font-size: 17px; margin-bottom: 8px; font-family: inherit; }
+  .feature p { font-size: 13.5px; color: var(--text-3); line-height: 1.6; }
+
+  /* ===== 科室 ===== */
+  .depts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .dept {
+    padding: 22px; display: flex; align-items: center; gap: 14px; cursor: pointer;
+    transition: all .3s var(--ease);
+  }
+  .dept:hover { transform: translateY(-3px); border-color: var(--brand-1); }
+  .dept-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; background: var(--brand-gradient-soft); border: 1px solid rgba(14,165,164,0.25); }
+  .dept-name { font-size: 15.5px; font-weight: 600; }
+  .dept-count { font-size: 12.5px; color: var(--text-3); }
+
+  /* ===== 资讯 ===== */
+  .articles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .article { overflow: hidden; cursor: pointer; transition: all .3s var(--ease); }
+  .article:hover { transform: translateY(-5px); }
+  .article-img {
+    height: 160px; border-radius: var(--radius-md) var(--radius-md) 0 0;
+    background: var(--brand-gradient-soft);
+    display: flex; align-items: center; justify-content: center; font-size: 48px;
+    margin: -24px -24px 18px;
+    position: relative; overflow: hidden;
+  }
+  .article-img::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 30%, rgba(56,189,248,0.2), transparent); }
+  .article-tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11.5px; background: var(--brand-gradient-soft); color: var(--brand-3); margin-bottom: 10px; }
+  .article h3 { font-size: 16px; margin-bottom: 8px; line-height: 1.4; font-family: inherit; }
+  .article p { font-size: 13.5px; color: var(--text-3); line-height: 1.6; margin-bottom: 12px; }
+  .article-meta { font-size: 12.5px; color: var(--text-4); display: flex; justify-content: space-between; }
+
+  /* ===== CTA ===== */
+  .cta {
+    margin: 60px 0; padding: 50px; border-radius: var(--radius-xl);
+    background: linear-gradient(135deg, rgba(14,165,164,0.2), rgba(56,189,248,0.12));
+    border: 1px solid rgba(14,165,164,0.3);
+    text-align: center; position: relative; overflow: hidden;
+  }
+  .cta::before { content: ''; position: absolute; width: 300px; height: 300px; border-radius: 50%; background: var(--brand-gradient); filter: blur(80px); opacity: .2; top: -100px; right: -80px; }
+  .cta h2 { font-size: 28px; margin-bottom: 12px; }
+  .cta p { color: var(--text-3); margin-bottom: 26px; }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; padding: 50px 0 60px; }
+    .hero-visual { height: 320px; }
+    .features, .depts { grid-template-columns: repeat(2, 1fr); }
+    .articles { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<nav class="nav" id="nav"></nav>
+
+<div class="container">
+  <!-- Hero -->
+  <section class="hero stagger">
+    <div>
+      <div class="hero-badge"><span class="dot live"></span> 三级甲等综合医院 · 全国百强</div>
+      <h1 class="hero-title">
+        智慧医疗<br>
+        <span class="grad">让健康触手可及</span>
+      </h1>
+      <p class="hero-desc">融合人工智能与尖端医疗技术，为您提供 AI 智能导诊、在线预约挂号、远程问诊、健康档案管理等全流程智慧医疗服务。</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="goLoginOr('appointments.html')">📅 立即挂号</button>
+        <button class="btn btn-ghost" onclick="goLoginOr('ai.html')">🤖 AI 智能导诊</button>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="num" id="stat1">0</div><div class="lbl">注册患者</div></div>
+        <div class="hero-stat"><div class="num" id="stat2">0</div><div class="lbl">在职医生</div></div>
+        <div class="hero-stat"><div class="num">24h</div><div class="lbl">在线服务</div></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="float-card c1">
+        <div class="fc-icon" style="background:rgba(52,211,153,0.15)">🩺</div>
+        <div class="fc-title">今日接诊</div>
+        <div class="fc-sub">实时挂号数据</div>
+        <div class="fc-bar"><span style="width:72%"></span></div>
+      </div>
+      <div class="float-card c2">
+        <div class="fc-icon" style="background:rgba(56,189,248,0.15)">🤖</div>
+        <div class="fc-title">AI 导诊</div>
+        <div class="fc-sub">智能科室推荐</div>
+        <div class="fc-bar"><span style="width:88%"></span></div>
+      </div>
+      <div class="float-card c3">
+        <div class="fc-icon" style="background:rgba(251,146,60,0.15)">💊</div>
+        <div class="fc-title">用药提醒</div>
+        <div class="fc-sub">智能健康管理</div>
+        <div class="fc-bar"><span style="width:65%"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 功能入口 -->
+  <section class="section">
+    <div class="section-head">
+      <h2>核心服务</h2>
+      <p>一站式智慧医疗服务平台</p>
+    </div>
+    <div class="features stagger" id="features"></div>
+  </section>
+
+  <!-- 科室 -->
+  <section class="section">
+    <div class="section-head">
+      <h2>热门科室</h2>
+      <p>涵盖 30+ 临床科室，专家坐诊</p>
+    </div>
+    <div class="depts stagger" id="depts"></div>
+  </section>
+
+  <!-- 资讯 -->
+  <section class="section">
+    <div class="section-head">
+      <h2>健康资讯</h2>
+      <p>权威医学科普，守护您的健康</p>
+    </div>
+    <div class="articles stagger" id="articles"></div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <h2>开始您的智慧就医之旅</h2>
+    <p>立即注册，享受 AI 导诊、在线挂号、远程问诊等全部服务</p>
+    <button class="btn btn-primary" onclick="goLoginOr('register.html')">立即注册 →</button>
+  </section>
+</div>
+
+<footer style="padding:40px 0; text-align:center; color:var(--text-4); font-size:13.5px; border-top:1px solid var(--border); margin-top:40px">
+  © 2026 智慧医院 · 让健康触手可及
+</footer>
+
+<script src="js/common.js"></script>
+<script>
+  renderNav('index.html');
+
+  function goLoginOr(p) { if (getUser()) location.href = p; else location.href = 'login.html?redirect=' + p; }
+
+  const features = [
+    { icon: '🤖', title: 'AI 智能导诊', desc: '描述症状，AI 智能推荐科室', href: 'ai.html' },
+    { icon: '📅', title: '在线预约挂号', desc: '随时随地预约专家门诊', href: 'appointments.html' },
+    { icon: '💬', title: '远程问诊', desc: '图文视频在线咨询医生', href: 'consult.html' },
+    { icon: '📋', title: '健康档案', desc: '电子病历一站式管理', href: 'records.html' },
+    { icon: '💊', title: '用药提醒', desc: '智能用药日程管理', href: 'records.html#medication' },
+    { icon: '💰', title: '在线缴费', desc: '挂号检查费在线支付', href: 'profile.html' },
+    { icon: '🧭', title: '院内导航', desc: '科室位置智能导航', href: 'appointments.html' },
+    { icon: '📰', title: '健康资讯', desc: '权威医学科普文章', href: '#' },
+  ];
+  document.getElementById('features').innerHTML = features.map(f => `
+    <div class="feature glass" onclick="goLoginOr('${f.href}')">
+      <div class="feature-icon">${f.icon}</div>
+      <h3>${f.title}</h3>
+      <p>${f.desc}</p>
+    </div>`).join('');
+
+  const articles = [
+    { tag: '心血管', icon: '❤️', title: '秋季如何预防心血管疾病？', desc: '气温骤降，血管收缩，专家提醒注意保暖与监测血压。', views: '2.3万' },
+    { tag: '呼吸科', icon: '🫁', title: '换季咳嗽久治不愈怎么办？', desc: '慢性咳嗽可能隐藏大问题，教您正确识别与就医。', views: '1.8万' },
+    { tag: '营养科', icon: '🥗', title: '一日三餐怎么吃才健康？', desc: '营养师解读膳食指南，科学搭配吃出健康。', views: '3.1万' },
+  ];
+  document.getElementById('articles').innerHTML = articles.map(a => `
+    <div class="article glass">
+      <div class="article-img">${a.icon}</div>
+      <span class="article-tag">${a.tag}</span>
+      <h3>${a.title}</h3>
+      <p>${a.desc}</p>
+      <div class="article-meta"><span>智慧医院编辑部</span><span>👁 ${a.views}</span></div>
+    </div>`).join('');
+
+  (async () => {
+    try {
+      const depts = await api('/api/departments');
+      document.getElementById('depts').innerHTML = depts.slice(0, 8).map(d => `
+        <div class="dept glass" onclick="goLoginOr('appointments.html?dept=${d.id}')">
+          <div class="dept-icon">${d.icon || '🏥'}</div>
+          <div>
+            <div class="dept-name">${escapeHtml(d.name)}</div>
+            <div class="dept-count">专家坐诊</div>
+          </div>
+        </div>`).join('');
+    } catch (e) {}
+    try {
+      const s = await api('/api/dashboard/stats');
+      animateNum('stat1', s.totalPatients);
+      animateNum('stat2', s.totalDoctors);
+    } catch (e) {}
+  })();
+
+  function animateNum(id, target) {
+    const el = document.getElementById(id); let cur = 0; const step = Math.max(1, Math.floor(target / 40));
+    const t = setInterval(() => { cur += step; if (cur >= target) { cur = target; clearInterval(t); } el.textContent = cur.toLocaleString(); }, 30);
+  }
+</script>
+</body>
+</html>

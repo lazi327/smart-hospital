@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在线挂号 - 智慧医院</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .booking-layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; }
+  .dept-list { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; backdrop-filter: blur(20px); max-height: calc(100vh - 140px); overflow-y: auto; position: sticky; top: 90px; }
+  .dept-item { padding: 12px 14px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; transition: all .2s; }
+  .dept-item:hover { background: var(--glass); }
+  .dept-item.active { background: var(--brand-gradient-soft); border: 1px solid rgba(14,165,164,0.3); }
+  .dept-item .icon { font-size: 20px; }
+  .dept-item .name { font-size: 14.5px; font-weight: 500; }
+  .dept-item .count { font-size: 12px; color: var(--text-4); margin-left: auto; }
+
+  .doctor-card { padding: 22px; margin-bottom: 16px; display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; }
+  .doctor-card .avatar-lg { width: 72px; height: 72px; font-size: 28px; }
+  .doctor-card .d-name { font-size: 19px; font-weight: 700; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .doctor-card .d-meta { font-size: 13.5px; color: var(--text-3); margin-bottom: 6px; }
+  .doctor-card .d-spec { font-size: 13.5px; color: var(--text-2); }
+  .doctor-card .fee-block { text-align: right; }
+  .doctor-card .fee { font-size: 22px; font-weight: 700; }
+  .doctor-card .fee small { font-size: 13px; font-weight: 400; }
+
+  .schedule-section { margin-top: 14px; grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 16px; }
+  .sch-days { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 14px; }
+  .sch-day { padding: 10px 16px; border-radius: 12px; background: var(--glass); border: 1px solid var(--border); cursor: pointer; text-align: center; min-width: 80px; transition: all .2s; flex-shrink: 0; }
+  .sch-day.active { background: var(--brand-gradient); border-color: transparent; }
+  .sch-day.active .d-date, .sch-day.active .d-week { color: #fff; }
+  .sch-day .d-date { font-size: 16px; font-weight: 600; }
+  .sch-day .d-week { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .sch-slots { display: flex; gap: 12px; }
+  .slot { flex: 1; padding: 16px; border-radius: 14px; background: var(--glass); border: 1px solid var(--border); text-align: center; cursor: pointer; transition: all .2s; }
+  .slot:hover:not(.disabled) { border-color: var(--brand-1); background: var(--brand-gradient-soft); }
+  .slot.disabled { opacity: .4; cursor: not-allowed; }
+  .slot.selected { background: var(--brand-gradient); border-color: transparent; }
+  .slot .p { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .slot .avail { font-size: 12.5px; color: var(--text-3); }
+  .slot.selected .p, .slot.selected .avail { color: #fff; }
+  .slot.full .avail { color: var(--danger); }
+
+  @media (max-width: 900px) {
+    .booking-layout { grid-template-columns: 1fr; }
+    .dept-list { position: static; max-height: 200px; }
+    .doctor-card { grid-template-columns: auto 1fr; }
+    .doctor-card .fee-block { grid-column: 1 / -1; text-align: left; }
+  }
+</style>
+</head>
+<body>
+<nav class="nav" id="nav"></nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">在线预约挂号</h1>
+    <p class="page-sub">选择科室与医生，快速完成预约</p>
+  </div>
+
+  <div class="booking-layout">
+    <!-- 科室列表 -->
+    <div class="dept-list" id="deptList"><div class="loading"><div class="spinner"></div></div></div>
+
+    <!-- 医生与号源 -->
+    <div id="doctorList"><div class="loading"><div class="spinner"></div></div></div>
+  </div>
+</div>
+
+<!-- 预约确认弹窗 -->
+<div class="modal-mask" id="okMask">
+  <div class="modal" style="text-align:center">
+    <div style="font-size:50px;margin-bottom:8px">🎉</div>
+    <h3 style="font-size:22px">预约成功</h3>
+    <div id="okInfo" style="line-height:2.2;font-size:14.5px;color:var(--text-2);margin:12px 0"></div>
+    <div class="actions" style="justify-content:center">
+      <button class="btn btn-ghost" onclick="location.href='index.html'">返回首页</button>
+      <button class="btn btn-primary" onclick="location.href='profile.html'">查看挂号记录</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+  requireRole('PATIENT');
+  renderNav('appointments.html');
+  let currentDept = null;
+
+  (async () => {
+    const depts = await api('/api/departments');
+    document.getElementById('deptList').innerHTML = depts.map(d => `
+      <div class="dept-item" data-id="${d.id}" onclick="selectDept(${d.id})">
+        <span class="icon">${d.icon || '🏥'}</span>
+        <span class="name">${escapeHtml(d.name)}</span>
+      </div>`).join('');
+    const pre = new URLSearchParams(location.search).get('dept');
+    selectDept(pre ? Number(pre) : depts[0].id);
+  })();
+
+  async function selectDept(id) {
+    currentDept = id;
+    document.querySelectorAll('.dept-item').forEach(el => el.classList.toggle('active', Number(el.dataset.id) === id));
+    const doctors = await api('/api/doctors?departmentId=' + id);
+    if (!doctors.length) {
+      document.getElementById('doctorList').innerHTML = '<div class="card empty"><div class="empty-icon">🏥</div>该科室暂无医生排班</div>';
+      return;
+    }
+    document.getElementById('doctorList').innerHTML = doctors.map(d => `
+      <div class="card doctor-card">
+        <div class="avatar-lg">${escapeHtml(d.name.charAt(0))}</div>
+        <div>
+          <div class="d-name">${escapeHtml(d.name)}<span class="tag">${escapeHtml(d.title)}</span></div>
+          <div class="d-meta">${escapeHtml(d.departmentName)}</div>
+          <div class="d-spec">专长：${escapeHtml(d.specialty || '综合诊疗')}</div>
+        </div>
+        <div class="fee-block">
+          <div class="fee">¥${d.fee}<small>/次</small></div>
+        </div>
+        <div class="schedule-section" id="sch-${d.id}">
+          <div class="sch-days" id="days-${d.id}"></div>
+          <div class="sch-slots" id="slots-${d.id}"></div>
+        </div>
+      </div>`).join('');
+    doctors.forEach(d => loadSchedules(d));
+  }
+
+  async function loadSchedules(doctor) {
+    const start = new Date();
+    const end = new Date(Date.now() + 13 * 864e5);
+    const fmt = d => d.toISOString().slice(0, 10);
+    const list = await api(`/api/schedules?doctorId=${doctor.id}&start=${fmt(start)}&end=${fmt(end)}`);
+    const days = [...new Set(list.map(s => s.date))].slice(0, 7);
+    if (!days.length) {
+      document.getElementById('sch-' + doctor.id).innerHTML = '<div class="muted" style="text-align:center;padding:20px">未来7天暂无排班</div>';
+      return;
+    }
+    const daysHtml = days.map((date, i) => {
+      const d = new Date(date);
+      return `<div class="sch-day ${i === 0 ? 'active' : ''}" data-date="${date}" onclick="selectDay(${doctor.id},'${date}')">
+        <div class="d-date">${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}</div>
+        <div class="d-week">${weekOf(date)}</div>
+      </div>`;
+    }).join('');
+    document.getElementById('days-' + doctor.id).innerHTML = daysHtml;
+    window._schData = window._schData || {};
+    window._schData[doctor.id] = { list, days, doctor };
+    renderSlots(doctor.id, days[0]);
+  }
+
+  function selectDay(docId, date) {
+    document.querySelectorAll('#days-' + docId + ' .sch-day').forEach(el => el.classList.toggle('active', el.dataset.date === date));
+    renderSlots(docId, date);
+  }
+
+  function renderSlots(docId, date) {
+    const { list, doctor } = window._schData[docId];
+    const dayList = list.filter(s => s.date === date);
+    const byPeriod = {};
+    dayList.forEach(s => byPeriod[s.period] = s);
+    const slots = ['AM', 'PM'].map(p => {
+      const s = byPeriod[p];
+      if (!s) return `<div class="slot disabled"><div class="p">${periodText(p)}</div><div class="avail">无号源</div></div>`;
+      const full = s.available <= 0;
+      return `<div class="slot ${full ? 'full' : ''}" ${full ? '' : `onclick="book(${s.id}, ${JSON.stringify(doctor).replace(/"/g,'&quot;')}, '${date}', '${p}')"`}>
+        <div class="p">${periodText(p)}</div>
+        <div class="avail">${full ? '已约满' : `剩余 ${s.available} 个号`}</div>
+      </div>`;
+    }).join('');
+    document.getElementById('slots-' + docId).innerHTML = slots;
+  }
+
+  async function book(scheduleId, doctor, date, period) {
+    if (!confirm(`确认预约 ${doctor.name} ${fmtDate(date)} ${periodText(period)}？`)) return;
+    try {
+      const r = await api('/api/appointments', { method: 'POST', body: { scheduleId } });
+      document.getElementById('okInfo').innerHTML = `
+        <div><b>${escapeHtml(doctor.name)}</b> · ${escapeHtml(doctor.title)}</div>
+        <div>${fmtDate(date)} ${weekOf(date)} ${periodText(period)}</div>
+        <div>就诊序号：<b style="color:var(--brand-2)">${r.queueNo}</b> 号</div>`;
+      document.getElementById('okMask').classList.add('show');
+    } catch (e) { toast(e.message, true); }
+  }
+</script>
+</body>
+</html>

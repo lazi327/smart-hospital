@@ -1,0 +1,38 @@
+server:
+  # 本地默认 8080；云上平台（Render 等）会通过 PORT 环境变量注入端口
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: smart-hospital
+
+  datasource:
+    # 本地默认连本机 MySQL；部署时通过 SPRING_DATASOURCE_* 环境变量指向外部 MySQL
+    # createDatabaseIfNotExist=true 会在账号有权限时自动建库
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/smart_hospital?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+
+  ai:
+    openai:
+      # DeepSeek 兼容 OpenAI 协议；请将 api-key 替换为你的 DeepSeek API Key，
+      # 或通过环境变量 DEEPSEEK_API_KEY 注入。未配置时系统其他功能仍可正常使用，
+      # 仅 AI 导诊/病历摘要功能会返回友好提示。
+      api-key: ${DEEPSEEK_API_KEY:sk-your-deepseek-api-key}
+      base-url: https://api.deepseek.com
+      chat:
+        options:
+          model: deepseek-chat
+          temperature: 0.7
+          max-tokens: 1024
+
+logging:
+  level:
+    org.springframework.ai: info

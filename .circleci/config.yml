@@ -1,0 +1,46 @@
+version: 2.1
+
+# 智慧医院服务系统 CI：Java 17 + Maven
+# 缓存 ~/.m2/repository，缓存键基于 pom.xml 校验和，pom 变更才刷新缓存
+
+jobs:
+  build:
+    docker:
+      - image: cimg/openjdk:17.0
+    working_directory: ~/project
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - v1-m2-{{ checksum "pom.xml" }}
+            - v1-m2-
+
+      - run:
+          name: 编译
+          command: mvn -B -q clean compile
+
+      - run:
+          name: 单元测试
+          command: mvn -B test
+
+      - run:
+          name: 打包（跳过重复测试）
+          command: mvn -B -q package -DskipTests
+
+      - save_cache:
+          key: v1-m2-{{ checksum "pom.xml" }}
+          paths:
+            - ~/.m2/repository
+
+      - store_test_results:
+          path: target/surefire-reports
+
+      - store_artifacts:
+          path: target/smart-hospital-1.0.0.jar
+          destination: smart-hospital.jar
+
+workflows:
+  build-and-test:
+    jobs:
+      - build

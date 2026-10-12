@@ -1,0 +1,25 @@
+# Render Blueprint —— 智慧医院服务系统（Spring Boot 3.4.5 + Spring AI + 外部 MySQL）
+# 部署方式：Git 仓库 + Blueprint。数据库采用外部托管 MySQL（连接串在 Dashboard 填写）。
+services:
+  - type: web
+    name: smart-hospital
+    runtime: java
+    plan: free
+    # Render 免费实例内存 512MB，限制堆大小避免 OOM 被杀
+    buildCommand: mvn -B clean package -DskipTests
+    startCommand: java -XX:MaxRAMPercentage=70.0 -Dserver.port=$PORT -jar target/smart-hospital-1.0.0.jar
+    healthCheckPath: /
+    envVars:
+      # ===== 外部 MySQL（必填，Dashboard 中填写，sync: false 表示不进版本库）=====
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      # ===== AI 导诊用的 DeepSeek Key，留空则 AI 功能返回友好提示 =====
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      # ===== 时区，保证号源日期与排班按北京时间计算 =====
+      - key: TZ
+        value: Asia/Shanghai

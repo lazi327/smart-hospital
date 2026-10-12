@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 - 智慧医院</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .admin-layout { display: grid; grid-template-columns: 220px 1fr; gap: 24px; }
+  .admin-side { position: sticky; top: 90px; height: fit-content; }
+  .admin-menu .menu-item { padding: 12px 16px; border-radius: 12px; cursor: pointer; font-size: 14.5px; color: var(--text-2); margin-bottom: 4px; display: flex; align-items: center; gap: 10px; transition: all .2s; }
+  .admin-menu .menu-item:hover { background: var(--glass); color: var(--text-1); }
+  .admin-menu .menu-item.active { background: var(--brand-gradient); color: #fff; }
+  .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card { padding: 20px; }
+  .stat-card .num { font-size: 32px; font-weight: 700; font-family: "Noto Serif SC", serif; }
+  .stat-card .lbl { font-size: 13px; color: var(--text-3); margin-top: 4px; }
+  .bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .bar-name { width: 90px; font-size: 13.5px; color: var(--text-2); }
+  .bar-track { flex: 1; height: 10px; background: var(--glass); border-radius: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 5px; background: var(--brand-gradient); transition: width .6s var(--ease); }
+  .bar-val { width: 40px; text-align: right; font-size: 13px; color: var(--text-3); }
+  .trend { display: flex; align-items: flex-end; gap: 10px; height: 160px; padding: 10px 0; }
+  .trend .col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .trend .bar { width: 100%; max-width: 36px; background: var(--brand-gradient); border-radius: 6px 6px 0 0; min-height: 4px; position: relative; }
+  .trend .bar span { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--text-3); }
+  .trend .x { font-size: 11px; color: var(--text-4); }
+  @media (max-width: 900px) { .admin-layout { grid-template-columns: 1fr; } .admin-side { position: static; } .stat-cards { grid-template-columns: repeat(2,1fr); } }
+</style>
+</head>
+<body>
+<nav class="nav" id="nav"></nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">管理后台</h1>
+    <p class="page-sub">运营数据与科室、医生、排班管理</p>
+  </div>
+
+  <div class="admin-layout">
+    <div class="card admin-side">
+      <div class="admin-menu">
+        <div class="menu-item active" data-tab="dash" onclick="switchTab('dash')">📊 数据看板</div>
+        <div class="menu-item" data-tab="dept" onclick="switchTab('dept')">🏥 科室管理</div>
+        <div class="menu-item" data-tab="doctor" onclick="switchTab('doctor')">👨‍⚕️ 医生管理</div>
+        <div class="menu-item" data-tab="schedule" onclick="switchTab('schedule')">📅 排班管理</div>
+      </div>
+    </div>
+
+    <div>
+      <!-- 数据看板 -->
+      <div id="tab-dash">
+        <div class="stat-cards" id="statCards"></div>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3 style="margin-bottom:18px">近30天科室挂号分布</h3>
+            <div id="deptBars"></div>
+          </div>
+          <div class="card">
+            <h3 style="margin-bottom:18px">近7天挂号趋势</h3>
+            <div class="trend" id="trend"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 科室管理 -->
+      <div id="tab-dept" style="display:none">
+        <div class="card">
+          <div class="row" style="margin-bottom:16px">
+            <h3 style="margin:0">科室列表</h3>
+            <div class="spacer"></div>
+            <button class="btn btn-primary btn-sm" onclick="openDeptModal()">+ 新增科室</button>
+          </div>
+          <table class="table" id="deptTable"></table>
+        </div>
+      </div>
+
+      <!-- 医生管理 -->
+      <div id="tab-doctor" style="display:none">
+        <div class="card">
+          <div class="row" style="margin-bottom:16px">
+            <h3 style="margin:0">医生列表</h3>
+            <div class="spacer"></div>
+            <button class="btn btn-primary btn-sm" onclick="openDoctorModal()">+ 新增医生</button>
+          </div>
+          <table class="table" id="doctorTable"></table>
+        </div>
+      </div>
+
+      <!-- 排班管理 -->
+      <div id="tab-schedule" style="display:none">
+        <div class="card">
+          <h3 style="margin-bottom:16px">排班设置</h3>
+          <div class="row wrap" style="gap:12px;margin-bottom:16px">
+            <label class="muted" style="font-size:13.5px">选择医生</label>
+            <select class="input" id="schDoctor" style="width:220px"></select>
+            <label class="muted" style="font-size:13.5px">未来</label>
+            <select class="input" id="schDays" style="width:110px">
+              <option value="7">7 天</option>
+              <option value="14">14 天</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadSchedules()">刷新</button>
+          </div>
+          <div id="schTableWrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 科室弹窗 -->
+<div class="modal-mask" id="deptMask">
+  <div class="modal">
+    <h3 id="deptModalTitle">新增科室</h3>
+    <form id="deptForm">
+      <input type="hidden" id="deptId">
+      <div class="form-item"><label>科室名称</label><input class="input" id="deptName" required placeholder="如：神经内科"></div>
+      <div class="form-item"><label>简介</label><textarea class="input" id="deptDesc" rows="2" placeholder="诊疗范围"></textarea></div>
+      <div class="form-grid">
+        <div class="form-item"><label>位置</label><input class="input" id="deptLoc" placeholder="门诊楼 3 层"></div>
+        <div class="form-item"><label>图标（emoji）</label><input class="input" id="deptIcon" placeholder="🩺"></div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-ghost" onclick="hideMasks()">取消</button>
+        <button class="btn btn-primary" type="submit">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 医生弹窗 -->
+<div class="modal-mask" id="doctorMask">
+  <div class="modal">
+    <h3 id="doctorModalTitle">新增医生</h3>
+    <form id="doctorForm">
+      <input type="hidden" id="docId">
+      <div class="form-grid">
+        <div class="form-item" id="usernameItem"><label>登录账号</label><input class="input" id="docUsername" placeholder="如：doctor10"></div>
+        <div class="form-item" id="passwordItem"><label>登录密码</label><input class="input" id="docPassword" type="text" placeholder="留空不修改"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-item"><label>姓名</label><input class="input" id="docName" required></div>
+        <div class="form-item"><label>职称</label><input class="input" id="docTitle" required placeholder="主任医师/主治医师"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-item"><label>科室</label><select class="input" id="docDept" required></select></div>
+        <div class="form-item"><label>挂号费（元）</label><input class="input" id="docFee" type="number" min="0" step="1" value="30"></div>
+      </div>
+      <div class="form-item"><label>专长</label><input class="input" id="docSpec" placeholder="如：冠心病、心律失常"></div>
+      <div class="actions">
+        <button type="button" class="btn btn-ghost" onclick="hideMasks()">取消</button>
+        <button class="btn btn-primary" type="submit">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+  requireRole('ADMIN');
+  renderNav('admin.html');
+  let departments = [];
+
+  function switchTab(t) {
+    document.querySelectorAll('.admin-menu .menu-item').forEach(m => m.classList.toggle('active', m.dataset.tab === t));
+    ['dash','dept','doctor','schedule'].forEach(k => document.getElementById('tab-' + k).style.display = k === t ? '' : 'none');
+    if (t === 'dash') loadDash();
+    if (t === 'dept') loadDepts();
+    if (t === 'doctor') loadDoctors();
+    if (t === 'schedule') initScheduleTab();
+  }
+
+  async function loadDash() {
+    const s = await api('/api/dashboard/stats');
+    document.getElementById('statCards').innerHTML = `
+      <div class="card stat-card"><div class="num text-brand">${s.todayAppointments}</div><div class="lbl">今日挂号量</div></div>
+      <div class="card stat-card"><div class="num" style="color:var(--info)">${s.totalPatients}</div><div class="lbl">注册患者</div></div>
+      <div class="card stat-card"><div class="num" style="color:var(--success)">${s.totalDoctors}</div><div class="lbl">在职医生</div></div>
+      <div class="card stat-card"><div class="num text-accent">${s.deptDistribution.reduce((a,b)=>a+b.count,0)}</div><div class="lbl">近30天累计</div></div>`;
+    const max = Math.max(1, ...s.deptDistribution.map(d => d.count));
+    document.getElementById('deptBars').innerHTML = s.deptDistribution.length
+      ? s.deptDistribution.map(d => `<div class="bar-row"><span class="bar-name">${escapeHtml(d.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(d.count/max*100)}%"></div></div><span class="bar-val">${d.count}</span></div>`).join('')
+      : '<div class="muted" style="padding:20px;text-align:center">暂无数据</div>';
+    const maxT = Math.max(1, ...s.weeklyTrend.map(d => d.count));
+    document.getElementById('trend').innerHTML = s.weeklyTrend.map(d => `<div class="col"><div class="bar" style="height:${Math.max(4,Math.round(d.count/maxT*140))}px">${d.count?`<span>${d.count}</span>`:''}</div><div class="x">${d.date.slice(5)}</div></div>`).join('');
+  }
+
+  async function loadDepts() {
+    departments = await api('/api/departments');
+    document.getElementById('deptTable').innerHTML = '<tr><th>ID</th><th>科室</th><th>简介</th><th>位置</th><th>操作</th></tr>' +
+      departments.map(d => `<tr><td>${d.id}</td><td><b>${escapeHtml(d.icon||'')} ${escapeHtml(d.name)}</b></td><td class="muted" style="max-width:260px">${escapeHtml(d.description||'')}</td><td>${escapeHtml(d.location||'')}</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick='editDept(${JSON.stringify(d)})'>编辑</button> <button class="btn btn-danger btn-sm" onclick="delDept(${d.id})">删除</button></td></tr>`).join('');
+  }
+  function openDeptModal(d) {
+    document.getElementById('deptModalTitle').textContent = d ? '编辑科室' : '新增科室';
+    document.getElementById('deptId').value = d ? d.id : '';
+    document.getElementById('deptName').value = d ? d.name : '';
+    document.getElementById('deptDesc').value = d ? (d.description||'') : '';
+    document.getElementById('deptLoc').value = d ? (d.location||'') : '';
+    document.getElementById('deptIcon').value = d ? (d.icon||'') : '';
+    document.getElementById('deptMask').classList.add('show');
+  }
+  const editDept = (d) => openDeptModal(d);
+  document.getElementById('deptForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api('/api/admin/departments', { method: 'POST', body: { id: document.getElementById('deptId').value || null, name: document.getElementById('deptName').value.trim(), description: document.getElementById('deptDesc').value.trim(), location: document.getElementById('deptLoc').value.trim(), icon: document.getElementById('deptIcon').value.trim() } });
+      hideMasks(); toast('保存成功'); loadDepts();
+    } catch (e) { toast(e.message, true); }
+  });
+  async function delDept(id) { if (!confirm('确认删除该科室？')) return; try { await api('/api/admin/departments/' + id, { method: 'DELETE' }); toast('已删除'); loadDepts(); } catch(e){ toast(e.message,true);} }
+
+  async function loadDoctors() {
+    departments = await api('/api/departments');
+    const docs = await api('/api/admin/doctors');
+    document.getElementById('doctorTable').innerHTML = '<tr><th>ID</th><th>姓名</th><th>科室</th><th>职称</th><th>专长</th><th>挂号费</th><th>操作</th></tr>' +
+      docs.map(d => `<tr><td>${d.id}</td><td><b>${escapeHtml(d.name)}</b></td><td>${escapeHtml(d.departmentName)}</td><td>${escapeHtml(d.title)}</td><td class="muted">${escapeHtml(d.specialty||'')}</td><td class="fee">¥${d.fee}</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick='editDoctor(${JSON.stringify(d)})'>编辑</button> <button class="btn btn-danger btn-sm" onclick="delDoctor(${d.id})">删除</button></td></tr>`).join('');
+  }
+  function openDoctorModal(d) {
+    document.getElementById('doctorModalTitle').textContent = d ? '编辑医生' : '新增医生';
+    document.getElementById('usernameItem').style.display = d ? 'none' : '';
+    document.getElementById('docId').value = d ? d.id : '';
+    document.getElementById('docUsername').value = '';
+    document.getElementById('docPassword').value = '';
+    document.getElementById('passwordItem').querySelector('label').textContent = d ? '重置密码（留空不改）' : '登录密码';
+    document.getElementById('docName').value = d ? d.name : '';
+    document.getElementById('docTitle').value = d ? d.title : '';
+    document.getElementById('docFee').value = d ? d.fee : 30;
+    document.getElementById('docSpec').value = d ? (d.specialty||'') : '';
+    document.getElementById('docDept').innerHTML = departments.map(x => `<option value="${x.id}">${escapeHtml(x.name)}</option>`).join('');
+    if (d) document.getElementById('docDept').value = d.departmentId;
+    document.getElementById('doctorMask').classList.add('show');
+  }
+  const editDoctor = (d) => openDoctorModal(d);
+  document.getElementById('doctorForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api('/api/admin/doctors', { method: 'POST', body: { id: document.getElementById('docId').value || null, username: document.getElementById('docUsername').value.trim(), password: document.getElementById('docPassword').value.trim(), name: document.getElementById('docName').value.trim(), title: document.getElementById('docTitle').value.trim(), departmentId: Number(document.getElementById('docDept').value), fee: Number(document.getElementById('docFee').value), specialty: document.getElementById('docSpec').value.trim() } });
+      hideMasks(); toast('保存成功'); loadDoctors();
+    } catch (e) { toast(e.message, true); }
+  });
+  async function delDoctor(id) { if (!confirm('确认删除该医生？其登录账号将一并删除')) return; try { await api('/api/admin/doctors/' + id, { method: 'DELETE' }); toast('已删除'); loadDoctors(); } catch(e){ toast(e.message,true);} }
+
+  let schInited = false;
+  async function initScheduleTab() {
+    if (schInited) return;
+    departments = await api('/api/departments');
+    const docs = await api('/api/doctors');
+    document.getElementById('schDoctor').innerHTML = docs.map(d => `<option value="${d.id}">${escapeHtml(d.name)}（${escapeHtml(d.departmentName)}）</option>`).join('');
+    schInited = true;
+    loadSchedules();
+  }
+  async function loadSchedules() {
+    const doctorId = document.getElementById('schDoctor').value;
+    const days = Number(document.getElementById('schDays').value);
+    if (!doctorId) return;
+    const start = new Date(); const end = new Date(Date.now() + (days-1)*864e5);
+    const fmt = d => d.toISOString().slice(0,10);
+    const list = await api(`/api/admin/schedules?doctorId=${doctorId}&start=${fmt(start)}&end=${fmt(end)}`);
+    const byDate = {}; list.forEach(s => (byDate[s.date] = byDate[s.date] || {})[s.period] = s);
+    let rows = '';
+    for (let i = 0; i < days; i++) {
+      const d = new Date(Date.now() + i*864e5); const key = fmt(d); const label = key.slice(5) + ' ' + weekOf(key);
+      rows += `<tr><td style="white-space:nowrap"><b>${label}</b></td>` + ['AM','PM'].map(p => {
+        const s = byDate[key] && byDate[key][p];
+        if (!s) return `<td><button class="btn btn-ghost btn-sm" onclick="addSlot('${key}','${p}')">+ 开诊</button></td>`;
+        return `<td><div class="row" style="gap:8px"><input class="input" style="width:70px" type="number" min="0" value="${s.capacity}" id="cap-${s.id}"><span class="muted" style="font-size:13px">已约 ${s.booked}</span><button class="btn btn-ghost btn-sm" onclick="saveSlot(${s.id},'${s.date}','${p}')">保存</button></div></td>`;
+      }).join('') + '</tr>';
+    }
+    document.getElementById('schTableWrap').innerHTML = `<table class="table"><tr><th>日期</th><th>上午号源</th><th>下午号源</th></tr>${rows}</table>`;
+  }
+  async function saveSlot(id, date, period) {
+    const cap = Number(document.getElementById('cap-'+id).value);
+    try { await api('/api/admin/schedules', { method:'POST', body:{doctorId:Number(document.getElementById('schDoctor').value), date, period, capacity:cap} }); toast('已更新'); loadSchedules(); } catch(e){ toast(e.message,true);}
+  }
+  async function addSlot(date, period) {
+    try { await api('/api/admin/schedules', { method:'POST', body:{doctorId:Number(document.getElementById('schDoctor').value), date, period, capacity:20} }); toast('已开诊'); loadSchedules(); } catch(e){ toast(e.message,true);}
+  }
+  function hideMasks() { document.querySelectorAll('.modal-mask').forEach(m => m.classList.remove('show')); }
+
+  loadDash();
+</script>
+</body>
+</html>

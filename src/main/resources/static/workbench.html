@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>医生工作台 - 智慧医院</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .wb-layout { display: grid; grid-template-columns: 1fr 420px; gap: 24px; }
+  .wb-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .wb-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .wb-stat { padding: 18px; }
+  .wb-stat .num { font-size: 28px; font-weight: 700; font-family: "Noto Serif SC", serif; }
+  .wb-stat .lbl { font-size: 13px; color: var(--text-3); margin-top: 4px; }
+  .patient-card { padding: 16px; margin-bottom: 10px; display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; cursor: pointer; transition: all .2s; border: 1px solid transparent; }
+  .patient-card:hover { border-color: var(--border-strong); transform: translateX(4px); }
+  .patient-card.active { background: var(--brand-gradient-soft); border-color: rgba(14,165,164,0.4); }
+  .patient-card .avatar-md { width: 44px; height: 44px; font-size: 18px; }
+  .patient-card .p-name { font-size: 15.5px; font-weight: 600; }
+  .patient-card .p-info { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
+  .patient-card .p-no { font-size: 24px; font-weight: 700; color: var(--brand-2); font-family: "Noto Serif SC", serif; }
+  .detail-panel { position: sticky; top: 90px; }
+  .detail-panel .card { height: calc(100vh - 120px); overflow-y: auto; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .wb-layout { grid-template-columns: 1fr; } .wb-stats { grid-template-columns: repeat(2,1fr); } .detail-panel .card { height: auto; } }
+</style>
+</head>
+<body>
+<nav class="nav" id="nav"></nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">医生工作台</h1>
+    <p class="page-sub" id="todayDate"></p>
+  </div>
+
+  <div class="wb-stats" id="wbStats"></div>
+
+  <div class="wb-layout">
+    <div>
+      <div class="card">
+        <div class="wb-header">
+          <h3 style="margin:0">今日接诊列表</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadToday()">🔄 刷新</button>
+        </div>
+        <div id="patientList"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <div class="detail-panel">
+      <div class="card">
+        <div id="detailArea">
+          <div class="empty"><div class="empty-icon">👈</div>请选择左侧患者查看详情</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+  requireRole('DOCTOR');
+  renderNav('workbench.html');
+  const u = getUser();
+  document.getElementById('todayDate').textContent = u.name + '医生 · ' + fmtDate(new Date()) + ' ' + weekOf(new Date());
+
+  let patients = [];
+
+  async function loadToday() {
+    patients = await api('/api/appointments/today');
+    const booked = patients.filter(p => p.status === 'BOOKED');
+    const finished = patients.filter(p => p.status === 'FINISHED');
+    document.getElementById('wbStats').innerHTML = `
+      <div class="card wb-stat"><div class="num text-brand">${patients.length}</div><div class="lbl">今日总挂号</div></div>
+      <div class="card wb-stat"><div class="num text-accent">${booked.length}</div><div class="lbl">待接诊</div></div>
+      <div class="card wb-stat"><div class="num" style="color:var(--success)">${finished.length}</div><div class="lbl">已完成</div></div>
+      <div class="card wb-stat"><div class="num" style="color:var(--info)">${patients.length ? Math.round(finished.length/patients.length*100) : 0}%</div><div class="lbl">完成率</div></div>`;
+
+    if (!patients.length) {
+      document.getElementById('patientList').innerHTML = '<div class="empty"><div class="empty-icon">📋</div>今日暂无挂号</div>';
+      return;
+    }
+    document.getElementById('patientList').innerHTML = patients.map(p => `
+      <div class="patient-card" onclick="selectPatient(${p.id})">
+        <div class="avatar-md">${escapeHtml(p.patientName.charAt(0))}</div>
+        <div>
+          <div class="p-name">${escapeHtml(p.patientName)}</div>
+          <div class="p-info">${periodText(p.period)} · ${escapeHtml(p.departmentName)}</div>
+        </div>
+        <div class="p-no">${p.queueNo}</div>
+      </div>`).join('');
+  }
+
+  async function selectPatient(id) {
+    document.querySelectorAll('.patient-card').forEach(el => el.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    const p = patients.find(x => x.id === id);
+    const record = await api('/api/records/by-appointment/' + id).catch(() => null);
+
+    document.getElementById('detailArea').innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--border)">
+        <div class="avatar-lg">${escapeHtml(p.patientName.charAt(0))}</div>
+        <div>
+          <h3 style="margin:0">${escapeHtml(p.patientName)}</h3>
+          <div class="muted" style="font-size:13.5px;margin-top:4px">就诊序号：<b class="text-brand">${p.queueNo}</b> 号 · ${periodText(p.period)}</div>
+        </div>
+        <div style="margin-left:auto"><span class="tag ${p.status==='BOOKED'?'':'success'}">${p.status==='BOOKED'?'待接诊':'已完成'}</span></div>
+      </div>
+      ${record ? `
+        <div style="padding:16px;background:var(--glass);border-radius:14px;margin-bottom:18px">
+          <div class="muted" style="font-size:12.5px;margin-bottom:6px">主诉</div>
+          <div style="font-size:14.5px;margin-bottom:12px">${escapeHtml(record.chiefComplaint)}</div>
+          <div class="muted" style="font-size:12.5px;margin-bottom:6px">诊断</div>
+          <div style="font-size:14.5px;margin-bottom:12px">${escapeHtml(record.diagnosis)}</div>
+          <div class="muted" style="font-size:12.5px;margin-bottom:6px">医嘱</div>
+          <div style="font-size:14.5px">${escapeHtml(record.advice || '无')}</div>
+          ${record.aiSummary ? `<div class="muted" style="font-size:12.5px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">🤖 AI 摘要：${escapeHtml(record.aiSummary)}</div>` : ''}
+        </div>` : ''}
+      ${p.status === 'BOOKED' ? `
+        <div class="form-item"><label>主诉</label><textarea class="input" id="cc" rows="2" placeholder="患者主要症状"></textarea></div>
+        <div class="form-item"><label>诊断</label><input class="input" id="diag" placeholder="诊断结果"></div>
+        <div class="form-item"><label>医嘱</label><textarea class="input" id="adv" rows="3" placeholder="用药建议、注意事项等"></textarea></div>
+        <div class="row" style="gap:10px;margin-top:14px">
+          <button class="btn btn-primary btn-block" onclick="saveRecord(${p.id})">💾 保存病历</button>
+          <button class="btn btn-accent" onclick="finishAppt(${p.id})">完成就诊</button>
+        </div>
+      ` : '<div class="empty" style="padding:30px"><div class="empty-icon">✅</div>该患者已完成就诊</div>'}`;
+  }
+
+  async function saveRecord(id) {
+    const cc = document.getElementById('cc').value.trim();
+    const diag = document.getElementById('diag').value.trim();
+    const adv = document.getElementById('adv').value.trim();
+    if (!cc || !diag) return toast('请填写主诉和诊断', true);
+    try {
+      await api('/api/records', { method: 'POST', body: { appointmentId: id, chiefComplaint: cc, diagnosis: diag, advice: adv } });
+      toast('病历已保存'); selectPatient(id);
+    } catch (e) { toast(e.message, true); }
+  }
+
+  async function finishAppt(id) {
+    if (!confirm('确认完成该患者就诊？')) return;
+    try { await api('/api/appointments/' + id + '/finish', { method: 'POST' }); toast('就诊已完成'); loadToday(); document.getElementById('detailArea').innerHTML = '<div class="empty"><div class="empty-icon">✅</div>请选择左侧患者</div>'; }
+    catch (e) { toast(e.message, true); }
+  }
+
+  loadToday();
+</script>
+</body>
+</html>

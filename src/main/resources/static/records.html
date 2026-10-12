@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>健康档案 - 智慧医院</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .records-layout { display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+  .record-card { padding: 20px; margin-bottom: 14px; }
+  .record-card .r-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .record-card .r-doctor { font-size: 16px; font-weight: 600; }
+  .record-card .r-meta { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
+  .record-card .r-section { margin-top: 12px; }
+  .record-card .r-label { font-size: 12px; color: var(--text-4); margin-bottom: 4px; }
+  .record-card .r-val { font-size: 14px; color: var(--text-2); }
+  .record-card .r-ai { margin-top: 14px; padding: 12px; background: var(--brand-gradient-soft); border-radius: 12px; font-size: 13px; color: var(--brand-3); border: 1px solid rgba(14,165,164,0.2); }
+  .med-item { display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--glass); border-radius: 12px; margin-bottom: 10px; }
+  .med-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--brand-gradient-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .med-info { flex: 1; }
+  .med-name { font-size: 14.5px; font-weight: 600; }
+  .med-desc { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
+  .med-done { text-decoration: line-through; opacity: .5; }
+  @media (max-width: 900px) { .records-layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<nav class="nav" id="nav"></nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">健康档案</h1>
+    <p class="page-sub">查看您的就诊记录与用药提醒</p>
+  </div>
+
+  <div class="records-layout">
+    <!-- 就诊记录 -->
+    <div>
+      <div class="card" id="recordList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- 用药提醒 -->
+    <div>
+      <div class="card">
+        <div class="row" style="margin-bottom:16px">
+          <h3 style="margin:0">💊 今日用药提醒</h3>
+          <div class="spacer"></div>
+          <button class="btn btn-ghost btn-sm" onclick="openMedModal()">+ 添加</button>
+        </div>
+        <div id="medList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 添加用药弹窗 -->
+<div class="modal-mask" id="medMask">
+  <div class="modal">
+    <h3>添加用药提醒</h3>
+    <div class="form-item"><label>药品名称</label><input class="input" id="medName" placeholder="如：阿莫西林"></div>
+    <div class="form-grid">
+      <div class="form-item"><label>剂量</label><input class="input" id="medDose" placeholder="如：1片"></div>
+      <div class="form-item"><label>频次</label>
+        <select class="input" id="medFreq">
+          <option value="1">每日1次</option>
+          <option value="2">每日2次</option>
+          <option value="3">每日3次</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-item"><label>备注</label><input class="input" id="medNote" placeholder="如：饭后服用"></div>
+    <div class="actions">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('medMask').classList.remove('show')">取消</button>
+      <button class="btn btn-primary" onclick="addMed()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+  requireRole('PATIENT');
+  renderNav('records.html');
+
+  async function loadRecords() {
+    const list = await api('/api/records/mine');
+    if (!list.length) {
+      document.getElementById('recordList').innerHTML = '<div class="empty"><div class="empty-icon">📋</div>暂无就诊记录</div>';
+      return;
+    }
+    document.getElementById('recordList').innerHTML = list.map(r => `
+      <div class="card record-card">
+        <div class="r-head">
+          <div>
+            <div class="r-doctor">${escapeHtml(r.doctorName)} <span class="tag gray">${escapeHtml(r.departmentName)}</span></div>
+            <div class="r-meta">${fmtDate(r.date)} ${weekOf(r.date)} ${periodText(r.period)}</div>
+          </div>
+          <span class="tag success">已完成</span>
+        </div>
+        <div class="r-section"><div class="r-label">主诉</div><div class="r-val">${escapeHtml(r.chiefComplaint)}</div></div>
+        <div class="r-section"><div class="r-label">诊断</div><div class="r-val">${escapeHtml(r.diagnosis)}</div></div>
+        ${r.advice ? `<div class="r-section"><div class="r-label">医嘱</div><div class="r-val">${escapeHtml(r.advice)}</div></div>` : ''}
+        ${r.aiSummary ? `<div class="r-ai">🤖 AI 摘要：${escapeHtml(r.aiSummary)}</div>` : ''}
+      </div>`).join('');
+  }
+
+  // 用药提醒（localStorage 管理）
+  function loadMeds() {
+    const meds = JSON.parse(localStorage.getItem('meds_' + getUser().id) || '[]');
+    if (!meds.length) {
+      document.getElementById('medList').innerHTML = '<div class="muted" style="text-align:center;padding:20px;font-size:13.5px">暂无用药提醒</div>';
+      return;
+    }
+    const today = fmtDate(new Date());
+    document.getElementById('medList').innerHTML = meds.map((m, i) => {
+      const doneKey = 'med_done_' + getUser().id + '_' + i + '_' + today;
+      const done = localStorage.getItem(doneKey) === '1';
+      return `<div class="med-item ${done ? 'med-done' : ''}">
+        <div class="med-icon">💊</div>
+        <div class="med-info">
+          <div class="med-name">${escapeHtml(m.name)}</div>
+          <div class="med-desc">${escapeHtml(m.dose)} · 每日${m.freq}次${m.note ? ' · ' + escapeHtml(m.note) : ''}</div>
+        </div>
+        <button class="btn btn-sm ${done ? 'btn-ghost' : 'btn-primary'}" onclick="toggleMed(${i})">${done ? '✓ 已服' : '标记'}</button>
+      </div>`;
+    }).join('');
+  }
+
+  function openMedModal() {
+    document.getElementById('medName').value = '';
+    document.getElementById('medDose').value = '';
+    document.getElementById('medNote').value = '';
+    document.getElementById('medMask').classList.add('show');
+  }
+  function addMed() {
+    const name = document.getElementById('medName').value.trim();
+    const dose = document.getElementById('medDose').value.trim();
+    const freq = document.getElementById('medFreq').value;
+    const note = document.getElementById('medNote').value.trim();
+    if (!name) return toast('请输入药品名称', true);
+    const meds = JSON.parse(localStorage.getItem('meds_' + getUser().id) || '[]');
+    meds.push({ name, dose, freq, note });
+    localStorage.setItem('meds_' + getUser().id, JSON.stringify(meds));
+    document.getElementById('medMask').classList.remove('show');
+    toast('已添加'); loadMeds();
+  }
+  function toggleMed(i) {
+    const today = fmtDate(new Date());
+    const key = 'med_done_' + getUser().id + '_' + i + '_' + today;
+    if (localStorage.getItem(key) === '1') localStorage.removeItem(key);
+    else localStorage.setItem(key, '1');
+    loadMeds();
+  }
+
+  loadRecords();
+  loadMeds();
+</script>
+</body>
+</html>
