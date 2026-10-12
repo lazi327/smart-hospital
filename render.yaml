@@ -5,9 +5,10 @@ services:
     name: smart-hospital
     runtime: java
     plan: free
-    # Render 免费实例内存 512MB，限制堆大小避免 OOM 被杀
+    # Render 免费实例内存 512MB，限制堆占比避免 OOM 被杀；
+    # 端口由 Render 注入的 PORT 环境变量决定（application.yml 中为 ${PORT:8080}）
     buildCommand: mvn -B clean package -DskipTests
-    startCommand: java -XX:MaxRAMPercentage=70.0 -Dserver.port=$PORT -jar target/smart-hospital-1.0.0.jar
+    startCommand: java -XX:MaxRAMPercentage=70.0 -jar target/smart-hospital-1.0.0.jar
     healthCheckPath: /
     envVars:
       # ===== 外部 MySQL（必填，Dashboard 中填写，sync: false 表示不进版本库）=====
